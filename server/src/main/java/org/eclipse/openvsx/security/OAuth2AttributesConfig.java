@@ -18,6 +18,7 @@ import java.util.*;
  * <pre><code>
  *ovsx:
  *  oauth2:
+ *    primary-provider: github
  *    attribute-names:
  *      [provider-name]:
  *        avatar-url: string
@@ -28,9 +29,15 @@ import java.util.*;
  * </code></pre>
  */
 @ConfigurationProperties(prefix = "ovsx.oauth2")
-public record OAuth2AttributesConfig(Map<String, OAuth2AttributesMapping> attributeNames) {
+public record OAuth2AttributesConfig(
+        String primaryProvider,
+        Map<String, OAuth2AttributesMapping> attributeNames) {
     private static final Map<String, OAuth2AttributesMapping> DEFAULT_MAPPINGS = Map.of(
-            "github", new OAuth2AttributesMapping("avatar_url", "email", "name", "login", "html_url")
+            "github", new OAuth2AttributesMapping("avatar_url", "email", "name", "login", "html_url"),
+            "gitlab", new OAuth2AttributesMapping("avatar_url", "email", "name", "username", "web_url"),
+            "google", new OAuth2AttributesMapping("picture", "email", "name", "email", "profile"),
+            "microsoft", new OAuth2AttributesMapping("picture", "mail", "displayName", "userPrincipalName", "profileUrl"),
+            "bitbucket", new OAuth2AttributesMapping("links.avatar.href", "email", "display_name", "username", "links.html.href")
     );
 
     public OAuth2AttributesMapping getAttributeMapping(String provider) {
@@ -44,5 +51,9 @@ public record OAuth2AttributesConfig(Map<String, OAuth2AttributesMapping> attrib
         }
 
         return providers;
+    }
+
+    public String getPrimaryProvider() {
+        return Optional.ofNullable(primaryProvider).orElse("github");
     }
 }

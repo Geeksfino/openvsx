@@ -37,7 +37,30 @@ public record OAuth2AttributesMapping(
         return userData;
     }
 
+    @SuppressWarnings("unchecked")
     private <T> T getAttribute(OAuth2User oauth2User, String attribute) {
-        return attribute == null ? null : oauth2User.getAttribute(attribute);
+        if (attribute == null) {
+            return null;
+        }
+        
+        // Handle nested attributes like "links.avatar.href"
+        if (attribute.contains(".")) {
+            String[] parts = attribute.split("\\.");
+            Object current = oauth2User.getAttributes();
+            
+            for (String part : parts) {
+                if (current instanceof java.util.Map<?, ?> map) {
+                    current = map.get(part);
+                } else {
+                    return null;
+                }
+                if (current == null) {
+                    return null;
+                }
+            }
+            return (T) current;
+        } else {
+            return oauth2User.getAttribute(attribute);
+        }
     }
 }

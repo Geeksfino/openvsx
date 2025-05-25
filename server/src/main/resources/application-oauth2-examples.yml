@@ -1,0 +1,89 @@
+# Example OAuth2 provider configurations for OpenVSX
+# This file demonstrates how to configure different OAuth2 providers
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          # GitHub (default)
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: user:email
+            
+          # GitLab
+          gitlab:
+            client-id: ${GITLAB_CLIENT_ID}
+            client-secret: ${GITLAB_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: read_user
+            
+          # Google
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid,profile,email
+            
+          # Microsoft Azure AD
+          microsoft:
+            client-id: ${MICROSOFT_CLIENT_ID}
+            client-secret: ${MICROSOFT_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid,profile,email
+            
+          # Bitbucket
+          bitbucket:
+            client-id: ${BITBUCKET_CLIENT_ID}
+            client-secret: ${BITBUCKET_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: account
+            
+        provider:
+          # GitLab
+          gitlab:
+            authorization-uri: https://gitlab.com/oauth/authorize
+            token-uri: https://gitlab.com/oauth/token
+            user-info-uri: https://gitlab.com/api/v4/user
+            user-name-attribute: username
+            
+          # Microsoft Azure AD
+          microsoft:
+            authorization-uri: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+            token-uri: https://login.microsoftonline.com/common/oauth2/v2.0/token
+            user-info-uri: https://graph.microsoft.com/v1.0/me
+            user-name-attribute: userPrincipalName
+            
+          # Bitbucket
+          bitbucket:
+            authorization-uri: https://bitbucket.org/site/oauth2/authorize
+            token-uri: https://bitbucket.org/site/oauth2/access_token
+            user-info-uri: https://api.bitbucket.org/2.0/user
+            user-name-attribute: username
+
+# OpenVSX OAuth2 configuration
+ovsx:
+  oauth2:
+    # Set the primary authentication provider (defaults to "github")
+    primary-provider: github
+    
+    # Custom attribute mappings (optional - defaults are provided for common providers)
+    attribute-names:
+      # Example: Custom GitLab instance
+      gitlab-custom:
+        avatar-url: avatar_url
+        email: email
+        full-name: name
+        login-name: username
+        provider-url: web_url
+        
+      # Example: Custom provider
+      custom-provider:
+        avatar-url: profile.avatar
+        email: contact.email
+        full-name: profile.displayName
+        login-name: username
+        provider-url: profile.url

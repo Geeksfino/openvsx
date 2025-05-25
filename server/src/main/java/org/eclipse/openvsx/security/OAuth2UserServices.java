@@ -121,8 +121,10 @@ public class OAuth2UserServices {
 
     private IdPrincipal loadEclipseUser(OAuth2UserRequest userRequest) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var primaryProvider = attributesConfig.getPrimaryProvider();
+        
         if (authentication == null)
-            throw new CodedAuthException("Please log in with GitHub before connecting your Eclipse account.",
+            throw new CodedAuthException("Please log in with " + primaryProvider + " before connecting your Eclipse account.",
                     NEED_MAIN_LOGIN);
         if (!(authentication.getPrincipal() instanceof IdPrincipal))
             throw new CodedAuthException("The current authentication is invalid.", NEED_MAIN_LOGIN);
@@ -133,15 +135,26 @@ public class OAuth2UserServices {
         try {
             var accessToken = userRequest.getAccessToken().getTokenValue();
             var profile = eclipse.getUserProfile(accessToken);
-            if (StringUtils.isEmpty(profile.getGithubHandle()))
-                throw new CodedAuthException("Your Eclipse profile is missing a GitHub username.",
-                        ECLIPSE_MISSING_GITHUB_ID);
-            if (!profile.getGithubHandle().equalsIgnoreCase(userData.getLoginName()))
-                throw new CodedAuthException("The GitHub username setting in your Eclipse profile ("
-                        + profile.getGithubHandle()
-                        + ") does not match your GitHub authentication ("
-                        + userData.getLoginName() + ").",
-                        ECLIPSE_MISMATCH_GITHUB_ID);
+            
+            // For GitHub provider, check GitHub handle
+            if ("github".equals(primaryProvider)) {
+                if (StringUtils.isEmpty(profile.getGithubHandle()))
+                    throw new CodedAuthException("Your Eclipse profile is missing a GitHub username.",
+                            ECLIPSE_MISSING_GITHUB_ID);
+                if (!profile.getGithubHandle().equalsIgnoreCase(userData.getLoginName()))
+                    throw new CodedAuthException("The GitHub username setting in your Eclipse profile ("
+                            + profile.getGithubHandle()
+                            + ") does not match your GitHub authentication ("
+                            + userData.getLoginName() + ").",
+                            ECLIPSE_MISMATCH_GITHUB_ID);
+            } else {
+                // For other providers, we can't verify GitHub handle, so just proceed
+                // This allows Eclipse integration with non-GitHub primary providers
+                if (StringUtils.isEmpty(profile.getGithubHandle())) {
+                    // Log a warning but don't fail authentication
+                    // The Eclipse profile might not have a GitHub handle for non-GitHub providers
+                }
+            }
 
             eclipse.updateUserData(userData, profile);
             return principal;
