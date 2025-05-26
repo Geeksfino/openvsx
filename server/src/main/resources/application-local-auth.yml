@@ -1,0 +1,104 @@
+# Local authentication configuration for OpenVSX
+# This configuration uses a mock OAuth2 server for local testing
+
+spring:
+  application:
+    name: openvsx-server
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
+  cache:
+    jcache:
+      config: classpath:ehcache.xml
+  datasource:
+    url: jdbc:postgresql://localhost:5432/openvsx
+    username: openvsx
+    password: openvsx
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0.1.0
+    baseline-description: JobRunr tables
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+  security:
+    oauth2:
+      client:
+        registration:
+          local-test:
+            client-id: local-test
+            client-secret: test-secret
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: read:user
+        provider:
+          local-test:
+            authorization-uri: http://localhost:9999/oauth/authorize
+            token-uri: http://localhost:9999/oauth/token
+            user-info-uri: http://localhost:9999/user
+            user-name-attribute: username
+
+server:
+  port: 8080
+
+management:
+  health:
+    probes:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - metrics
+
+org:
+  jobrunr:
+    job-scheduler:
+      enabled: true
+    background-job-server:
+      enabled: true
+      worker-count: 2
+    dashboard:
+      enabled: false
+    database:
+      type: sql
+    miscellaneous:
+      allow-anonymous-data-usage: false
+
+ovsx:
+  databasesearch:
+    enabled: true
+  elasticsearch:
+    enabled: false
+  extension-control:
+    update-on-start: true
+  integrity:
+    key-pair: create # create, renew, delete, 'undefined'
+  oauth2:
+    # Set local-test as the primary provider
+    primary-provider: local-test
+    
+    # Custom attribute mappings for our mock provider
+    attribute-names:
+      local-test:
+        avatar-url: avatar_url
+        email: email
+        full-name: name
+        login-name: username
+        provider-url: html_url
+  registry:
+    version: 'v0.14.3'
+  storage:
+    local:
+      directory: /tmp

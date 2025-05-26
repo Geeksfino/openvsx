@@ -1,0 +1,11 @@
+server:
+  port: 9999
+
+spring:
+  application:
+    name: mock-oauth2-server
+
+logging:
+  level:
+    org.eclipse.openvsx.mock: DEBUG
+    org.springframework.web: DEBUG

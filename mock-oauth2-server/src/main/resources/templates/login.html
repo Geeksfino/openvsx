@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock OAuth2 Server - Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            color: #333;
+            margin: 0;
+            font-size: 24px;
+        }
+        .logo p {
+            color: #666;
+            margin: 5px 0 0 0;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        input[type="text"], input[type="password"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus, input[type="password"]:focus, select:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 0 2px rgba(0,122,204,0.2);
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #005a9e;
+        }
+        .error {
+            background-color: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #fcc;
+        }
+        .users-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        .users-info h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        .user-list {
+            font-size: 14px;
+            color: #666;
+        }
+        .user-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .quick-select {
+            margin-top: 10px;
+        }
+        .quick-btn {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            background: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            text-decoration: none;
+            color: #495057;
+        }
+        .quick-btn:hover {
+            background: #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>🔐 Mock OAuth2 Server</h1>
+            <p>Local Authentication for Testing</p>
+        </div>
+
+        <div th:if="${error}" class="error" th:text="${error}"></div>
+
+        <div class="users-info">
+            <h3>Available Test Users:</h3>
+            <div class="user-list">
+                <div th:each="user : ${users}" class="user-item">
+                    <strong th:text="${user.value.username}">username</strong> / 
+                    <span th:text="${user.value.password}">password</span>
+                    <em>(<span th:text="${user.value.role}">role</span>)</em>
+                </div>
+            </div>
+            <div class="quick-select">
+                <strong>Quick select:</strong>
+                <span th:each="user : ${users}">
+                    <a href="#" class="quick-btn" 
+                       th:data-username="${user.value.username}"
+                       th:data-password="${user.value.password}"
+                       onclick="fillUser(this.dataset.username, this.dataset.password)">
+                        <span th:text="${user.value.username}">user</span>
+                    </a>
+                </span>
+            </div>
+        </div>
+
+        <form method="post" action="/oauth/authorize">
+            <input type="hidden" name="client_id" th:value="${client_id}">
+            <input type="hidden" name="redirect_uri" th:value="${redirect_uri}">
+            <input type="hidden" name="response_type" th:value="${response_type}">
+            <input type="hidden" name="scope" th:value="${scope}">
+            <input type="hidden" name="state" th:value="${state}">
+
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn">Authorize Application</button>
+        </form>
+    </div>
+
+    <script>
+        function fillUser(username, password) {
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+        }
+    </script>
+</body>
+</html>
