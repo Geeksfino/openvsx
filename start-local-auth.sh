@@ -5,6 +5,10 @@
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 echo "🚀 Starting OpenVSX with Local Authentication"
 echo "=============================================="
 
@@ -45,6 +49,11 @@ else
     echo "🔐 Starting Mock OAuth2 Server on port 9999..."
     cd mock-oauth2-server
     # Use the pre-built JAR instead of Maven
+    if [ ! -f "target/mock-oauth2-server-1.0.0.jar" ]; then
+        echo "❌ Mock OAuth2 Server JAR not found at: $(pwd)/target/mock-oauth2-server-1.0.0.jar"
+        echo "Please build the Mock OAuth2 server first with: cd mock-oauth2-server && mvn clean package"
+        exit 1
+    fi
     java -jar target/mock-oauth2-server-1.0.0.jar > ../mock-oauth2-server.log 2>&1 &
     MOCK_SERVER_PID=$!
     cd ..
@@ -76,6 +85,11 @@ if check_port 8080; then
     # Start OpenVSX server
     echo "🌐 Starting OpenVSX Server on port 8080..."
     cd server
+    if [ ! -f "build/libs/openvsx-server.jar" ]; then
+        echo "❌ OpenVSX Server JAR not found at: $(pwd)/build/libs/openvsx-server.jar"
+        echo "Please build the OpenVSX server first with: ./gradlew build"
+        exit 1
+    fi
     java -jar build/libs/openvsx-server.jar --spring.profiles.active=local-auth --server.port=8080 > ../openvsx-server.log 2>&1 &
     OPENVSX_PID=$!
     cd ..
