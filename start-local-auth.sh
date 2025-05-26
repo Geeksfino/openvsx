@@ -17,7 +17,8 @@ fi
 # Function to check if port is available
 check_port() {
     local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    # Use a more portable way to check ports since lsof might not be available
+    if timeout 1 bash -c "echo >/dev/tcp/localhost/$port" 2>/dev/null; then
         echo "❌ Port $port is already in use"
         return 1
     fi
@@ -26,15 +27,23 @@ check_port() {
 
 # Check required ports
 echo "🔍 Checking required ports..."
-check_port 9999 || exit 1
-check_port 8080 || exit 1
+if ! check_port 9999; then
+    echo "ℹ️  Port 9999 is in use, attempting to kill existing process..."
+    pkill -f "mock-oauth2-server" || true
+    sleep 2
+fi
 
-echo "✅ Ports are available"
+if ! check_port 8080; then
+    echo "ℹ️  Port 8080 is in use, OpenVSX server may already be running"
+fi
+
+echo "✅ Ports checked"
 
 # Start mock OAuth2 server in background
 echo "🔐 Starting Mock OAuth2 Server on port 9999..."
 cd mock-oauth2-server
-./mvnw spring-boot:run > ../mock-oauth2-server.log 2>&1 &
+# Use the pre-built JAR instead of Maven
+java -jar target/mock-oauth2-server-1.0.0.jar > ../mock-oauth2-server.log 2>&1 &
 MOCK_SERVER_PID=$!
 cd ..
 
@@ -53,27 +62,33 @@ for i in {1..30}; do
     sleep 1
 done
 
-# Start OpenVSX server
-echo "🌐 Starting OpenVSX Server on port 8080..."
-cd server
-./gradlew bootRun --args='--spring.profiles.active=local-auth' > ../openvsx-server.log 2>&1 &
-OPENVSX_PID=$!
-cd ..
+# Check if OpenVSX is already running
+if check_port 8080; then
+    # Start OpenVSX server
+    echo "🌐 Starting OpenVSX Server on port 8080..."
+    cd server
+    java -jar build/libs/openvsx-server.jar --spring.profiles.active=local-auth --server.port=8080 > ../openvsx-server.log 2>&1 &
+    OPENVSX_PID=$!
+    cd ..
 
-# Wait for OpenVSX to start
-echo "⏳ Waiting for OpenVSX Server to start..."
-for i in {1..60}; do
-    if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
-        echo "✅ OpenVSX Server is running"
-        break
-    fi
-    if [ $i -eq 60 ]; then
-        echo "❌ OpenVSX Server failed to start"
-        kill $MOCK_SERVER_PID $OPENVSX_PID 2>/dev/null || true
-        exit 1
-    fi
-    sleep 2
-done
+    # Wait for OpenVSX to start
+    echo "⏳ Waiting for OpenVSX Server to start..."
+    for i in {1..60}; do
+        if curl -s http://localhost:8080/api/version > /dev/null 2>&1; then
+            echo "✅ OpenVSX Server is running"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            echo "❌ OpenVSX Server failed to start"
+            kill $MOCK_SERVER_PID $OPENVSX_PID 2>/dev/null || true
+            exit 1
+        fi
+        sleep 2
+    done
+else
+    echo "ℹ️  OpenVSX Server is already running on port 8080"
+    OPENVSX_PID=""
+fi
 
 echo ""
 echo "🎉 Local Authentication Setup Complete!"
@@ -94,14 +109,21 @@ echo "  • Mock OAuth2 Server: mock-oauth2-server.log"
 echo "  • OpenVSX Server: openvsx-server.log"
 echo ""
 echo "🛑 To stop services:"
-echo "  kill $MOCK_SERVER_PID $OPENVSX_PID"
+if [ -n "$OPENVSX_PID" ]; then
+    echo "  kill $MOCK_SERVER_PID $OPENVSX_PID"
+else
+    echo "  kill $MOCK_SERVER_PID"
+fi
 echo ""
 
 # Keep script running and handle cleanup
 cleanup() {
     echo ""
     echo "🛑 Stopping services..."
-    kill $MOCK_SERVER_PID $OPENVSX_PID 2>/dev/null || true
+    kill $MOCK_SERVER_PID 2>/dev/null || true
+    if [ -n "$OPENVSX_PID" ]; then
+        kill $OPENVSX_PID 2>/dev/null || true
+    fi
     echo "✅ Services stopped"
 }
 

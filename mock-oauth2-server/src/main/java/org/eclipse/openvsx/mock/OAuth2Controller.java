@@ -73,15 +73,38 @@ public class OAuth2Controller {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> token(@RequestParam String grant_type,
                                                    @RequestParam String code,
-                                                   @RequestParam String client_id,
-                                                   @RequestParam String client_secret,
-                                                   @RequestParam(required = false) String redirect_uri) {
+                                                   @RequestParam(required = false) String client_id,
+                                                   @RequestParam(required = false) String client_secret,
+                                                   @RequestParam(required = false) String redirect_uri,
+                                                   @RequestHeader(value = "Authorization", required = false) String authorization) {
         
         if (!"authorization_code".equals(grant_type)) {
             return ResponseEntity.badRequest().build();
         }
 
-        String accessToken = userService.exchangeCodeForToken(code, client_id, client_secret);
+        // Extract client credentials from Authorization header if not provided as parameters
+        String actualClientId = client_id;
+        String actualClientSecret = client_secret;
+        
+        if ((actualClientId == null || actualClientSecret == null) && authorization != null && authorization.startsWith("Basic ")) {
+            try {
+                String base64Credentials = authorization.substring(6);
+                String credentials = new String(java.util.Base64.getDecoder().decode(base64Credentials));
+                String[] parts = credentials.split(":", 2);
+                if (parts.length == 2) {
+                    actualClientId = parts[0];
+                    actualClientSecret = parts[1];
+                }
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+        }
+        
+        if (actualClientId == null || actualClientSecret == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String accessToken = userService.exchangeCodeForToken(code, actualClientId, actualClientSecret);
         if (accessToken == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
