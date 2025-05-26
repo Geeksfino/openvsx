@@ -27,10 +27,42 @@ check_port() {
 
 # Check required ports
 echo "🔍 Checking required ports..."
+
+# Check if Mock OAuth2 server is already running
 if ! check_port 9999; then
-    echo "ℹ️  Port 9999 is in use, attempting to kill existing process..."
-    pkill -f "mock-oauth2-server" || true
-    sleep 2
+    echo "ℹ️  Port 9999 is in use, checking if it's our Mock OAuth2 server..."
+    if curl -s http://localhost:9999/ > /dev/null 2>&1; then
+        echo "✅ Mock OAuth2 Server is already running"
+        MOCK_SERVER_PID=""
+    else
+        echo "ℹ️  Port 9999 is in use by another process, attempting to kill it..."
+        pkill -f "mock-oauth2-server" || true
+        sleep 2
+        MOCK_SERVER_PID=""
+    fi
+else
+    # Start mock OAuth2 server in background
+    echo "🔐 Starting Mock OAuth2 Server on port 9999..."
+    cd mock-oauth2-server
+    # Use the pre-built JAR instead of Maven
+    java -jar target/mock-oauth2-server-1.0.0.jar > ../mock-oauth2-server.log 2>&1 &
+    MOCK_SERVER_PID=$!
+    cd ..
+    
+    # Wait for mock server to start
+    echo "⏳ Waiting for Mock OAuth2 Server to start..."
+    for i in {1..30}; do
+        if curl -s http://localhost:9999/ > /dev/null 2>&1; then
+            echo "✅ Mock OAuth2 Server is running"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo "❌ Mock OAuth2 Server failed to start"
+            kill $MOCK_SERVER_PID 2>/dev/null || true
+            exit 1
+        fi
+        sleep 1
+    done
 fi
 
 if ! check_port 8080; then
@@ -38,29 +70,6 @@ if ! check_port 8080; then
 fi
 
 echo "✅ Ports checked"
-
-# Start mock OAuth2 server in background
-echo "🔐 Starting Mock OAuth2 Server on port 9999..."
-cd mock-oauth2-server
-# Use the pre-built JAR instead of Maven
-java -jar target/mock-oauth2-server-1.0.0.jar > ../mock-oauth2-server.log 2>&1 &
-MOCK_SERVER_PID=$!
-cd ..
-
-# Wait for mock server to start
-echo "⏳ Waiting for Mock OAuth2 Server to start..."
-for i in {1..30}; do
-    if curl -s http://localhost:9999/ > /dev/null 2>&1; then
-        echo "✅ Mock OAuth2 Server is running"
-        break
-    fi
-    if [ $i -eq 30 ]; then
-        echo "❌ Mock OAuth2 Server failed to start"
-        kill $MOCK_SERVER_PID 2>/dev/null || true
-        exit 1
-    fi
-    sleep 1
-done
 
 # Check if OpenVSX is already running
 if check_port 8080; then
@@ -109,10 +118,17 @@ echo "  • Mock OAuth2 Server: mock-oauth2-server.log"
 echo "  • OpenVSX Server: openvsx-server.log"
 echo ""
 echo "🛑 To stop services:"
+PIDS=""
+if [ -n "$MOCK_SERVER_PID" ]; then
+    PIDS="$PIDS $MOCK_SERVER_PID"
+fi
 if [ -n "$OPENVSX_PID" ]; then
-    echo "  kill $MOCK_SERVER_PID $OPENVSX_PID"
+    PIDS="$PIDS $OPENVSX_PID"
+fi
+if [ -n "$PIDS" ]; then
+    echo "  kill$PIDS"
 else
-    echo "  kill $MOCK_SERVER_PID"
+    echo "  Services are already running (use pkill -f 'mock-oauth2-server' or pkill -f 'openvsx-server')"
 fi
 echo ""
 
@@ -120,7 +136,9 @@ echo ""
 cleanup() {
     echo ""
     echo "🛑 Stopping services..."
-    kill $MOCK_SERVER_PID 2>/dev/null || true
+    if [ -n "$MOCK_SERVER_PID" ]; then
+        kill $MOCK_SERVER_PID 2>/dev/null || true
+    fi
     if [ -n "$OPENVSX_PID" ]; then
         kill $OPENVSX_PID 2>/dev/null || true
     fi
